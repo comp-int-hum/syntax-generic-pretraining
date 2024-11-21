@@ -1,0 +1,13 @@
+SELECT DISTINCT ?work ?date ?item
+    WHERE
+    {
+       ?item wdt:P31 wd:Q7725634 .
+       ?item wdt:P407 wd:Q1860 .
+       ?item wdt:P577 ?date FILTER (?date <
+    "1750-01-01T00:00:00Z"^^xsd:dateTime) .
+       OPTIONAL {
+          ?item rdfs:label ?work FILTER (lang(?work) = "en").
+        }
+    } ORDER BY ?date
+
+

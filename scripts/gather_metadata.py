@@ -1,12 +1,8 @@
 import argparse
 from wikidata.client import Client
 from SPARQLWrapper import SPARQLWrapper, JSON
+import json
 
-#
-# This script does *nothing* except print out its arguments and touch any files
-# specified as outputs (thus fulfilling a build system's requirements for
-# success).
-#
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -18,20 +14,20 @@ if __name__ == "__main__":
 
     sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
     print("Gathering metadata {} from {}".format(args.output, args.sparql))
-    with open(args.sparql, "rt") as s_in:
+    with open(args.sparql, "rt") as s_in, open(args.output, "wt") as s_o:
         q = s_in.read()
         sparql.setQuery(q)
         sparql.setReturnFormat(JSON)
         results = sparql.query().convert()
         
-
-    for r in results["results"]["bindings"]:
-        id = r["item"]["value"].split("/")[-1]
-        entity = client.get(id, load=True)
-        ws = entity.data.get("sitelinks",{}).get("enwikisource",None)
-        if ws:
-            print(ws)
-        
+        wd_c = 0
+        for r in results["results"]["bindings"]:
+            id = r["item"]["value"].split("/")[-1]
+            entity = client.get(id, load=True)
+            ws = entity.data.get("sitelinks",{}).get("enwikisource",None)
+            if ws:
+                wd_c+=1
+                s_o.write(json.dumps(ws | r)+"\n")
+            
+    print("Gathered {} texts with WikiSource attributions".format(wd_c))    
     
-        
-#https://www.wikidata.org/w/api.php?action=wbgetentities&format=xml&props=sitelinks&ids=Q174596&sitefilter=enwikisource        

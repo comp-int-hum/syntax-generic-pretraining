@@ -24,10 +24,12 @@ from steamroller import Environment
 # i.e. without having to directly edit this file.
 vars = Variables("custom.py")
 vars.AddVariables(
-    ("OUTPUT_WIDTH", "", 5000),
-    ("MODEL_TYPES", "", ["naive_bayes", "neural"]),
-    ("PARAMETER_VALUES", "", [0.1, 0.5, 0.9]),
-    ("DATASETS", "", {"example_dataset" : "data/materials.txt"}),
+
+    ("SPARQL_QUERY","", "data/en_authors.txt"),
+    ("PG_CATALOG", "", "data/pg_catalog.csv"),
+    ("P1_THRESH", "", 90),
+    ("P2_THRESH", "", 92),
+    ("BD_THRESH", "", 5),
     ("FOLDS", "", 1),
     ("CPU_QUEUE", "", "some_queue"),
     ("CPU_ACCOUNT", "", "some_account"),    
@@ -48,6 +50,10 @@ env = Environment(
     # in values for these (note that e.g. the existence of a MODEL_TYPES variable above doesn't
     # automatically populate MODEL_TYPE, we'll do this with for-loops).
     BUILDERS={
+
+	"QueryWD" : Builder(
+		  action="python scripts/author_gather_metadata.py --sparql ${SPARQL_QUERY} --output ${TARGETS[0]}"),
+
         "PreprocessData" : Builder(
             action="python scripts/preprocess_data.py --input ${SOURCES[0]} --outputs ${TARGETS[0]}"
         ),
@@ -84,6 +90,12 @@ env = Environment(
 # ("sources") to later ones, and how some outputs are also gathered into the "results"
 # variable, so they can be summarized together after each experiment runs.
 
+
+
+
+
+
+"""
 results = []
 for dataset_name, dataset_file in env["DATASETS"].items():
     data = env.PreprocessData("work/${DATASET_NAME}/data.txt", dataset_file, DATASET_NAME=dataset_name)
@@ -137,3 +149,4 @@ report = env.GenerateReport(
     STEAMROLLER_QUEUE=env["CPU_QUEUE"],
     STEAMROLLER_ACCOUNT=env["CPU_ACCOUNT"]
 )
+"""

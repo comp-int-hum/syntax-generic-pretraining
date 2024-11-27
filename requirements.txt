@@ -7,3 +7,5 @@ SPARQLWrapper==2.0.0
 steamroller==3.0.2
 thefuzz==0.22.1
 Wikidata==0.8.1
+nltk
+beautifulsoup4

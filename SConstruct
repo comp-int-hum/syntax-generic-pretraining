@@ -36,6 +36,7 @@ vars.AddVariables(
     ("GPU_QUEUE", "", "another_queue"),
     ("GPU_ACCOUNT", "", "another_account"),
     ("GPU_COUNT", "", 1),
+    ("WORK_DIR", "", "work")
 )
 
 # Methods on the environment object are used all over the place, but it mostly serves to
@@ -51,7 +52,7 @@ env = Environment(
     # automatically populate MODEL_TYPE, we'll do this with for-loops).
     BUILDERS={
 
-	"QueryWD" : Builder(
+		"QueryWD" : Builder(
 		  action="python scripts/author_gather_metadata.py --sparql ${SPARQL_QUERY} --output ${TARGETS[0]}"),
 
         "PreprocessData" : Builder(
@@ -68,7 +69,22 @@ env = Environment(
         ),
         "GenerateReport" : Builder(
             action="python scripts/generate_report.py --experimental_results ${SOURCES} --outputs ${TARGETS[0]}"
-        )
+        ),
+        "ExtractAuthorWorksFromPG" : Builder(
+			action = (
+       			"python scripts/extract_author_works_from_gutenberg.py "
+				"--input ${SOURCES} "
+				"--output ${TARGETS}"
+			)
+   
+		),
+        "ExtractDocStructures" : Builder(
+			action = (
+				"python scripts/extract_doc_structures.py "
+				"--input ${SOURCES} "
+				"--output ${TARGETS}"
+			)
+		)
     }
 )
 
@@ -91,8 +107,17 @@ env = Environment(
 # variable, so they can be summarized together after each experiment runs.
 
 
+input = env.File(f"work/en_auth_test.jsonl")
 
+authors_and_extracted_works = env.ExtractAuthorWorksFromPG(
+    source = input,
+    target = "${WORK_DIR}/authors_and_extracted_works.jsonl"
+)
 
+extracted_structures = env.ExtractDocStructures(
+	source = authors_and_extracted_works,
+	target = "${WORK_DIR}/extracted_structures.jsonl"
+)
 
 
 """

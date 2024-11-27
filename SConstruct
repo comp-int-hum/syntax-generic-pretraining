@@ -44,7 +44,7 @@ vars.AddVariables(
 # manage the variables (see above) and builders (see below).
 env = Environment(
     variables=vars,
-    
+    ENV = os.environ,
     # Defining a bunch of builders (none of these do anything except "touch" their targets,
     # as you can see in the dummy.py script).  Consider in particular the "TrainModel" builder,
     # which interpolates two variables beyond the standard SOURCES/TARGETS: PARAMETER_VALUE

@@ -9,3 +9,4 @@ thefuzz==0.22.1
 Wikidata==0.8.1
 nltk
 beautifulsoup4
+tqdm

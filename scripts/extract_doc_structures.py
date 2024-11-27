@@ -4,7 +4,9 @@ import nltk
 from bs4 import BeautifulSoup
 import logging
 import re
+from tqdm import tqdm
 
+nltk.download("punkt_tab")
 logger = logging.getLogger("extract_text_structures")
 
 def get_chapters(soup):
@@ -47,7 +49,7 @@ if __name__ == "__main__":
     logger.info("Extracting structure")
  
     with open(args.input, "rt") as input_file, open(args.output, "wt") as output_file:
-        for line in input_file:
+        for line in tqdm(input_file, desc="Iterating through authors and extracted works"):
             author_info = json.loads(line)
             for work in author_info["extracted_works"]:
                 soup = BeautifulSoup(work["raw"], "html.parser")

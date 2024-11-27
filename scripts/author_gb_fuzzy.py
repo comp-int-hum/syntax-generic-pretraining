@@ -59,7 +59,7 @@ if __name__ == "__main__":
                     n+=len(gb_record["Works"])
                     used_gb.append(gb_a[0])
                     pass_1.append({"gb_works": gb_record["Works"], "gb_author": a_to_a[gb_a[0]], "score":gb_a[1], "gb_birth": gb_record["gb_birth"], "assigned": "pass1"} | jline)
-                    s_o.write(json.dumps({"gb_works": gb_record["Works"], "gb_author": a_to_a[gb_a[0]], "gb_birth": gb_record["gb_birth"], "assigned": "pass1"} | jline)+"\n")
+                    #s_o.write(json.dumps({"gb_works": gb_record["Works"], "gb_author": a_to_a[gb_a[0]], "gb_birth": gb_record["gb_birth"], "assigned": "pass1"} | jline)+"\n")
                 else:
                     leftover.append(jline)
             else:
@@ -68,20 +68,13 @@ if __name__ == "__main__":
 
                     
         print("Retrieved {} Gids from {} authors of {} total WD authors in pass 1".format(n, len(pass_1), n_total))
-
-        #TODO: deduplication, looks like its the multiple author in Gutenberg fields, but a small set
-        counts = Counter([p["gb_author"] for p in pass_1])
-        dups = {key:value for key, value in counts.items() if value > 1}
-        for k in dups.keys():
-            for p in pass_1:
-                if k == p["gb_author"]:
-                    print(p)
                     
         #pass 2: assign leftovers based on similarity thresh alone
         a2_to_a = {ma: ga for ma, ga in a_to_a.items() if ma not in used_gb}
 
         print("Leftover WD from pass 1: {} Leftover GB from pass1 {}".format(len(leftover), len(a2_to_a)))
-        
+
+        pass_2 = []
         n_pass2 = 0
         na_pass2 = 0
         for line2 in leftover:
@@ -92,8 +85,22 @@ if __name__ == "__main__":
                 gb_record = a_t_id.get(a2_to_a[gb_a[0]])
                 na_pass2 += 1
                 n_pass2+=len(gb_record["Works"])
-                s_o.write(json.dumps({"gb_works": gb_record["Works"], "gb_author": a2_to_a[gb_a[0]], "gb_birth": gb_record["gb_birth"], "assigned": "pass2"} | line2)+"\n")
+                pass_2.append({"gb_works": gb_record["Works"], "gb_author": a2_to_a[gb_a[0]], "gb_birth": gb_record["gb_birth"], "assigned": "pass2"} | line2)
+                #s_o.write(json.dumps({"gb_works": gb_record["Works"], "gb_author": a2_to_a[gb_a[0]], "gb_birth": gb_record["gb_birth"], "assigned": "pass2"} | line2)+"\n")
 
         print("Retrieved {} additional Gids from {} additional authors in pass 2".format(n_pass2, na_pass2))
-        print("Total Works: {} Total Authors {}".format(n+n_pass2, len(pass_1)+na_pass2))
 
+        #deduplication: given what I've seen a simple rule of just take the first should function for now
+        counts = Counter([p["gb_author"] for p in pass_1+pass_2])
+        dups = {key:value for key, value in counts.items() if value > 1}
+        print("{} author duplicates".format(len(dups)))
+        seen = []
+        n = 0
+        n_w = 0
+        for author in pass_1+pass_2:
+            if author["gb_author"] not in seen:
+                seen.append(author["gb_author"])
+                n+=1
+                n_w += len(author["gb_works"])
+                s_o.write(json.dumps(author)+"\n")
+        print("Final result of {} authors and {} Gids".format(n, n_w))

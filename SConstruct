@@ -24,7 +24,8 @@ from steamroller import Environment
 # i.e. without having to directly edit this file.
 vars = Variables("custom.py")
 vars.AddVariables(
-
+    ("DATA_ROOT", "", os.path.expanduser("~/corpora")),
+    ("GUTENBERG_PATH", "", "${DATA_ROOT}/gutenberg/"),
     ("SPARQL_QUERY","", "data/en_authors.txt"),
     ("PG_CATALOG", "", "data/pg_catalog.csv"),
     ("P1_THRESH", "", 90),
@@ -36,7 +37,7 @@ vars.AddVariables(
     ("GPU_QUEUE", "", "another_queue"),
     ("GPU_ACCOUNT", "", "another_account"),
     ("GPU_COUNT", "", 1),
-    ("WORK_DIR", "", "work")
+    ("WORK_DIR", "", "work"),
 )
 
 # Methods on the environment object are used all over the place, but it mostly serves to
@@ -74,6 +75,7 @@ env = Environment(
 			action = (
        			"python scripts/extract_author_works_from_gutenberg.py "
 				"--input ${SOURCES} "
+				"--gutenberg_path ${GUTENBERG_PATH} "
 				"--output ${TARGETS}"
 			)
    

@@ -29,6 +29,10 @@ vars.AddVariables(
     ("GPU_ACCOUNT", "", "another_account"),
     ("GPU_COUNT", "", 1),
     ("WORK_DIR", "", "work"),
+    ("TRAIN_PORTION", "", 0.7),
+    ("DEV_PORTION", "", 0.1),
+    ("TEST_PORTION", "", 0.2),
+    ("RANDOM_SEED", "", 42),
 )
 
 # Methods on the environment object are used all over the place, but it mostly serves to
@@ -46,22 +50,6 @@ env = Environment(
 
 		"QueryWD" : Builder(
 		  action="python scripts/author_gather_metadata.py --sparql ${SPARQL_QUERY} --output ${TARGETS[0]}"),
-
-        "PreprocessData" : Builder(
-            action="python scripts/preprocess_data.py --input ${SOURCES[0]} --outputs ${TARGETS[0]}"
-        ),
-        "ShuffleData" : Builder(
-            action="python scripts/shuffle_data.py --dataset ${SOURCES[0]} --outputs ${TARGETS}"
-        ),
-        "TrainModel" : Builder(
-            action="python scripts/train_model.py --parameter_value ${PARAMETER_VALUE} --model_type ${MODEL_TYPE} --train ${SOURCES[0]} --dev ${SOURCES[1]} --outputs ${TARGETS[0]}"            
-        ),
-        "ApplyModel" : Builder(
-            action="python scripts/apply_model.py --model ${SOURCES[0]} --test ${SOURCES[1]} --outputs ${TARGETS[0]}"
-        ),
-        "GenerateReport" : Builder(
-            action="python scripts/generate_report.py --experimental_results ${SOURCES} --outputs ${TARGETS[0]}"
-        ),
         "ExtractAuthorWorksFromPG" : Builder(
 			action = (
        			"python scripts/extract_author_works_from_gutenberg.py "
@@ -77,28 +65,31 @@ env = Environment(
 				"--input ${SOURCES} "
 				"--output ${TARGETS}"
 			)
-		)
+		),
+        "TrainingSplit" : Builder(
+            action = (
+                "python scripts/train_test_val.py "
+                "--input ${SOURCES} "
+                "--output_train ${TARGETS[0]} "
+                "--output_dev ${TARGETS[1]} "
+                "--output_test ${TARGETS[2]} "
+                "--train_portion ${TRAIN_PORTION} "
+                "--dev_portion ${DEV_PORTION} "
+                "--test_portion ${TEST_PORTION} "
+                "--random_seed ${RANDOM_SEED}"
+
+
+            )
+        ),
+        "TrainTokenizer" : Builder(
+            action = (
+                "python scripts/train_tokenizer.py "
+                "--input ${SOURCES} "
+                "--output ${TARGETS}"
+            )
+        )
     }
 )
-
-# At this point we have defined all the builders and variables, so it's
-# time to specify the actual experimental process, which will involve
-# running all combinations of datasets, folds, model types, and parameter values,
-# collecting the build artifacts from applying the models to test data in a list.
-#
-# The basic pattern for invoking a build rule is:
-#
-#   "env.Rule(list_of_targets, list_of_sources, VARIABLE1=value, VARIABLE2=value...)"
-#
-# Note how variables can be specified in each invocation, and their values used to fill
-# in the build commands *and* determine output filenames, potentially overriding the global
-# variables at the top of this file.  It's a very flexible system, and there are ways to
-# make it less verbose, but in this case explicit is better than implicit.
-#
-# Note also how the outputs ("targets") from earlier invocation are used as the inputs
-# ("sources") to later ones, and how some outputs are also gathered into the "results"
-# variable, so they can be summarized together after each experiment runs.
-
 
 input = env.File(f"work/en_auth_test.jsonl")
 
@@ -112,59 +103,13 @@ extracted_structures = env.ExtractDocStructures(
 	target = "${WORK_DIR}/extracted_structures.jsonl"
 )
 
-
-"""
-results = []
-for dataset_name, dataset_file in env["DATASETS"].items():
-    data = env.PreprocessData("work/${DATASET_NAME}/data.txt", dataset_file, DATASET_NAME=dataset_name)
-    for fold in range(1, env["FOLDS"] + 1):
-        train, dev, test = env.ShuffleData(
-            [
-                "work/${DATASET_NAME}/${FOLD}/train.txt",
-                "work/${DATASET_NAME}/${FOLD}/dev.txt",
-                "work/${DATASET_NAME}/${FOLD}/test.txt",
-            ],
-            data,
-            FOLD=fold,
-            DATASET_NAME=dataset_name,
-            STEAMROLLER_QUEUE=env["CPU_QUEUE"],
-            STEAMROLLER_ACCOUNT=env["CPU_ACCOUNT"]
-        )
-        for model_type in env["MODEL_TYPES"]:
-            for parameter_value in env["PARAMETER_VALUES"]:
-                #
-                # Note how the STEAMROLLER_* variables are specified differently here.
-                #
-                model = env.TrainModel(
-                    "work/${DATASET_NAME}/${FOLD}/${MODEL_TYPE}/${PARAMETER_VALUE}/model.bin",
-                    [train, dev],
-                    FOLD=fold,
-                    DATASET_NAME=dataset_name,
-                    MODEL_TYPE=model_type,
-                    PARAMETER_VALUE=parameter_value,
-                    STEAMROLLER_QUEUE=env["GPU_QUEUE"],
-                    STEAMROLLER_ACCOUNT=env["GPU_ACCOUNT"],
-                    STEAMROLLER_GPU_COUNT=env["GPU_COUNT"]
-                )
-                results.append(
-                    env.ApplyModel(
-                        "work/${DATASET_NAME}/${FOLD}/${MODEL_TYPE}/${PARAMETER_VALUE}/applied.txt",
-                        [model, test],
-                        FOLD=fold,
-                        DATASET_NAME=dataset_name,
-                        MODEL_TYPE=model_type,
-                        PARAMETER_VALUE=parameter_value,
-                        STEAMROLLER_QUEUE=env["CPU_QUEUE"],
-                        STEAMROLLER_ACCOUNT=env["CPU_ACCOUNT"]
-                    )
-                )
-
-# Use the list of applied model outputs to generate an evaluation report (table, plot,
-# f-score, confusion matrix, whatever makes sense).
-report = env.GenerateReport(
-    "work/report.txt",
-    results,
-    STEAMROLLER_QUEUE=env["CPU_QUEUE"],
-    STEAMROLLER_ACCOUNT=env["CPU_ACCOUNT"]
+train_dev_test = env.TrainingSplit(
+    source = extracted_structures,
+    target = ["${WORK_DIR}/data.train", "${WORK_DIR}/data.dev", "${WORK_DIR}/data.test"]
 )
-"""
+
+tokenizer = env.TrainTokenizer(
+    source = train_dev_test[0],
+    target = "${WORK_DIR}/tokenizer.json"
+)
+

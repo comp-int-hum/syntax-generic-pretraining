@@ -10,3 +10,5 @@ Wikidata==0.8.1
 nltk
 beautifulsoup4
 tqdm
+torch
+transformers

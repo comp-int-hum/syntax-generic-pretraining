@@ -19,9 +19,10 @@ vars.AddVariables(
     ("GUTENBERG_PATH", "", "${DATA_ROOT}/gutenberg/"),
     ("SPARQL_QUERY","", "data/en_authors.txt"),
     ("PG_CATALOG", "", "data/pg_catalog.csv"),
-    ("P1_THRESH", "", 90),
-    ("P2_THRESH", "", 92),
-    ("BD_THRESH", "", 5),
+    ("P1_THRESH", "", 90), #similarity threshold for pass 1 of fuzzy matching, paried with bd_thresh
+    ("P2_THRESH", "", 92), #similarity threshold for pass 2 of fuzzy matching, used alone
+    ("BD_THRESH", "", 5), #allowed birthdate delta
+    ("OMIT_AUTHORS","",["Herman Melville"]), #temporary measure to omit a given author, uses WD authorname
     ("FOLDS", "", 1),
     ("CPU_QUEUE", "", "some_queue"),
     ("CPU_ACCOUNT", "", "some_account"),    
@@ -48,8 +49,17 @@ env = Environment(
     # automatically populate MODEL_TYPE, we'll do this with for-loops).
     BUILDERS={
 
-		"QueryWD" : Builder(
-		  action="python scripts/author_gather_metadata.py --sparql ${SPARQL_QUERY} --output ${TARGETS[0]}"),
+        "QueryWD" : Builder(
+              action="python scripts/author_gather_metadata.py --sparql ${SOURCES} --output ${TARGETS}"
+	 ),
+	"GBAuthorFuzzy": Builder(
+	      action="python scripts/author_gb_fuzz.py "
+	             "--input ${SOURCES} --output ${TARGETS} "
+		     "--pg_catalog ${PG_CATALOG} "
+		     "--author_omit ${OMIT_AUTHORS} "
+		     "--p1_thresh ${P1_THRESH} --p2_thresh ${P2_THRESH} --bd_thresh ${BD_THRESH}"
+        ),
+
         "ExtractAuthorWorksFromPG" : Builder(
 			action = (
        			"python scripts/extract_author_works_from_gutenberg.py "
@@ -91,10 +101,15 @@ env = Environment(
     }
 )
 
-input = env.File(f"work/en_auth_test.jsonl")
+
+input = env.File(env["SPARQL_QUERY"])
+
+query_res = env.QueryWD(source = input, target = "${WORK_DIR}/author_query.jsonl")
+
+gb_authors = env.GBAuthorFuzzy(source = query_res, target = "${WORK_DIR}/gb_authors.jsonl")
 
 authors_and_extracted_works = env.ExtractAuthorWorksFromPG(
-    source = input,
+    source = gb_authors,
     target = "${WORK_DIR}/authors_and_extracted_works.jsonl"
 )
 

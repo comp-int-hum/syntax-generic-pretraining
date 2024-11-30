@@ -16,6 +16,7 @@ if __name__ == "__main__":
     parser.add_argument("--p1_thresh", type=int, default=90, help="Pass 1 similarity threshold")
     parser.add_argument("--p2_thresh", type=int, default=92, help="Pass 2 similarity threshold")
     parser.add_argument("--bd_thresh", type=int, default=5, help="Pass 1 birthday delta threshold")
+    parser.add_argument("--author_omit", nargs="+", default=[], help="Temporary author disable using WD name")
     args, rest = parser.parse_known_args()
 
     a_t_id = defaultdict(lambda: defaultdict(dict))
@@ -73,6 +74,7 @@ if __name__ == "__main__":
         a2_to_a = {ma: ga for ma, ga in a_to_a.items() if ma not in used_gb}
 
         print("Leftover WD from pass 1: {} Leftover GB from pass1 {}".format(len(leftover), len(a2_to_a)))
+        
 
         pass_2 = []
         n_pass2 = 0
@@ -97,8 +99,9 @@ if __name__ == "__main__":
         seen = []
         n = 0
         n_w = 0
+        print("Omitting authors: {}".format(args.author_omit))
         for author in pass_1+pass_2:
-            if author["gb_author"] not in seen:
+            if author["gb_author"] not in seen and author["authorLabel"]["value"] not in args.author_omit:
                 seen.append(author["gb_author"])
                 n+=1
                 n_w += len(author["gb_works"])

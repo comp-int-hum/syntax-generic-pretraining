@@ -53,7 +53,7 @@ env = Environment(
               action="python scripts/author_gather_metadata.py --sparql ${SOURCES} --output ${TARGETS}"
 	 ),
 	"GBAuthorFuzzy": Builder(
-	      action="python scripts/author_gb_fuzz.py "
+	      action="python scripts/author_gb_fuzzy.py "
 	             "--input ${SOURCES} --output ${TARGETS} "
 		     "--pg_catalog ${PG_CATALOG} "
 		     "--author_omit ${OMIT_AUTHORS} "

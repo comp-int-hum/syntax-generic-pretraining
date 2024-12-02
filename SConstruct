@@ -97,6 +97,14 @@ env = Environment(
                 "--input ${SOURCES} "
                 "--output ${TARGETS}"
             )
+        ),
+	"TokenizeSplit" : Builder(
+            action = (
+                "python scripts/tokenize_split.py "
+                "--input ${SOURCES} "
+                "--tokenizer ${TOKENIZER} "
+                "--output ${TARGETS} "
+            )
         )
     }
 )
@@ -127,4 +135,13 @@ tokenizer = env.TrainTokenizer(
     source = train_dev_test[0],
     target = "${WORK_DIR}/tokenizer.json"
 )
+
+tokenized_train_dev_test = []
+for data_split in train_dev_test:
+    tokenized_train_dev_test.append(env.TokenizeSplit(
+        source = data_split,
+        TOKENIZER = tokenizer,
+        target = str(data_split) + ".pt"
+))
+
 

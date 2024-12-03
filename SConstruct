@@ -4,15 +4,6 @@ import os.path
 from steamroller import Environment
 
 
-# Variables control various aspects of the experiment.  Note that you have to declare
-# any variables you want to use here, with reasonable default values, but when you want
-# to change/override the default values, do so in the "custom.py" file.
-#
-# Note how, since we expect some of our build rules may want to use GPUs and/or run on
-# a grid, we include a few variables along those lines that can then be overridden in
-# the "custom.py" file and then used when a build rule (like "env.TrainModel") is invoked.
-# Adding some indirection like this allows us finer-grained control using "custom.py",
-# i.e. without having to directly edit this file.
 vars = Variables("custom.py")
 vars.AddVariables(
     ("DATA_ROOT", "", os.path.expanduser("~/corpora")),
@@ -23,6 +14,7 @@ vars.AddVariables(
     ("P2_THRESH", "", 92), #similarity threshold for pass 2 of fuzzy matching, used alone
     ("BD_THRESH", "", 5), #allowed birthdate delta
     ("OMIT_AUTHORS","",["Herman Melville"]), #temporary measure to omit a given author, uses WD authorname
+    ("MAX_WORKS","", 3), #maximum number of works per author for data balancing purposes
     ("FOLDS", "", 1),
     ("CPU_QUEUE", "", "some_queue"),
     ("CPU_ACCOUNT", "", "some_account"),    
@@ -57,7 +49,7 @@ env = Environment(
 	             "--input ${SOURCES} --output ${TARGETS} "
 		     "--pg_catalog ${PG_CATALOG} "
 		     "--author_omit ${OMIT_AUTHORS} "
-		     "--p1_thresh ${P1_THRESH} --p2_thresh ${P2_THRESH} --bd_thresh ${BD_THRESH}"
+		     "--p1_thresh ${P1_THRESH} --p2_thresh ${P2_THRESH} --bd_thresh ${BD_THRESH} --max_works ${MAX_WORKS} --random_state ${RANDOM_SEED}"
         ),
 
         "ExtractAuthorWorksFromPG" : Builder(
@@ -101,8 +93,8 @@ env = Environment(
 	"TokenizeSplit" : Builder(
             action = (
                 "python scripts/tokenize_split.py "
-                "--input ${SOURCES} "
-                "--tokenizer ${TOKENIZER} "
+                "--input ${SOURCES[0]} "
+                "--tokenizer ${SOURCES[1]} "
                 "--output ${TARGETS} "
             )
         )
@@ -139,8 +131,7 @@ tokenizer = env.TrainTokenizer(
 tokenized_train_dev_test = []
 for data_split in train_dev_test:
     tokenized_train_dev_test.append(env.TokenizeSplit(
-        source = data_split,
-        TOKENIZER = tokenizer,
+        source = [data_split, tokenizer],
         target = str(data_split) + ".pt"
 ))
 

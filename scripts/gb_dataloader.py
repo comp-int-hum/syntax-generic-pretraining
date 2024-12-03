@@ -10,28 +10,23 @@ from random import randrange
 
 class GBDataset(Dataset):
 
-    def __init__(self, data_file, seq_length, tokenizer, offset=0, random_chunk=False):
+    def __init__(self, data_file, seq_length, offset=0, random_chunk=False):
         self.seq_length = seq_length
         self.offset = offset
-        self.tokenizer = tokenizer
         self.random_chunk = random_chunk
-
-        tokenizer_name = tokenizer.__class__.__name__
-
-        
         self.data = torch.load(data_file)
 
-        def __len__(self):
-            if self.random_chunk:
-                return len(self.data) // self.seq_length - 1
-            else:
-                return (len(self.data) - self.offset) // self.seq_length
+    def __len__(self):
+        if self.random_chunk:
+            return len(self.data) // self.seq_length - 1
+        else:
+            return (len(self.data) - self.offset) // self.seq_length
 
-        def __getitem__(self, i):
-            if self.random_chunk:
-                offset = randrange(self.seq_length)
-                return self.data[i*self.seq_length+offset:(i+1)*self.seq_length+offset]
-            else:
-                return self.data[i*self.seq_length+self.offset:(i+1)*self.seq_length+self.offset]
-            
+    def __getitem__(self, i):
+        if self.random_chunk:
+            offset = randrange(self.seq_length)
+            return self.data[i*self.seq_length+offset:(i+1)*self.seq_length+offset]
+        else:
+            return self.data[i*self.seq_length+self.offset:(i+1)*self.seq_length+self.offset]
         
+    

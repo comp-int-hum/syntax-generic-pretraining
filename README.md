@@ -1,1 +1,1 @@
-# historical-perspectival-lm
+# Experiments in syntax generic pretraining

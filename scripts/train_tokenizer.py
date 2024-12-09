@@ -11,6 +11,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", help="text input")
     parser.add_argument("--output", help="Tokenizer model output")
+    parser.add_argument("--special_tokens", nargs="+", default=[], help="Additional special tokens for generic pretraining")
     args, rest = parser.parse_known_args()
 
     logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,8 @@ if __name__ == "__main__":
     tokenizer.normalizer = NFKC()
 
     logging.info("Training tokenizer")
-    trainer = trainers.BpeTrainer(vocab_size=16000, min_frequency=2, special_tokens=["<pad>", "<s>", "</s>"])
+    addl_tokens = ["<"+tok+">" for tok in args.special_tokens] if len(args.special_tokens) > 0 else []
+    trainer = trainers.BpeTrainer(vocab_size=16000, min_frequency=2, special_tokens=["<pad>", "<s>", "</s>"]+addl_tokens)
     tokenizer.train([args.input], trainer)
 
     logging.info("Saving tokenizer model")
@@ -34,14 +36,14 @@ if __name__ == "__main__":
 
 
     # text = 'Shiro Okada (岡田志郎, "Okada Shirō", June 9, 1949; Hirakata, Osaka {age 71} - ) is a Japanese guitarist who participate in the Group Sound band, the Ox. His nickname was Shiro (シロー) and his real name is Shiro Okamoto (岡田史郎).'
-    text = "The quick brown fox jumps over the lazy dog."
+    text = "The quick brown <PROPN> jumps over the lazy <NOUN>."
 
     encoded = tokenizer.encode(text)
     logging.info(f"Encoded String: {encoded.tokens}")
 
     logging.info(f"Encoded IDs: {encoded.ids}")
 
-    decoded = tokenizer.decode(encoded.ids)
+    decoded = tokenizer.decode(encoded.ids, skip_special_tokens=False)
     logging.info(f"Decoded String: {decoded}")
 
 

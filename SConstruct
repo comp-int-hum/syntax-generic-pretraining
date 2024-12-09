@@ -14,7 +14,7 @@ vars.AddVariables(
 
     # Tinystories data
     ("TS_TAR", "", "data/TinyStories_all_data.tar.gz"),
-    ("TS_N", "", 5),
+    ("TS_N", "", 100000),
     ("POS_REP", "", ["NOUN", "PROPN"]),
 
     # SPARQL query
@@ -94,8 +94,8 @@ env = Environment(
                 "--train_portion ${TRAIN_PORTION} "
                 "--dev_portion ${DEV_PORTION} "
                 "--test_portion ${TEST_PORTION} "
-                "--random_seed ${RANDOM_SEED}"
-
+                "--random_seed ${RANDOM_SEED} "
+                "--include_preface"
 
             )
         ),
@@ -103,7 +103,8 @@ env = Environment(
             action = (
                 "python scripts/train_tokenizer.py "
                 "--input ${SOURCES} "
-                "--output ${TARGETS}"
+                "--output ${TARGETS} "
+                "--special_tokens ${POS_REP}"
             )
         ),
 	    "TokenizeSplit" : Builder(
@@ -172,26 +173,8 @@ ts_data = env.LoadTSData(source = ts_input, target = "${WORK_DIR}/ts_subset.json
 
 pos_data = env.POSTransform(source = ts_data, target = "${WORK_DIR}/ts_pos.jsonl", DATA_NAME = "ts")
 
-
-"""
-input = env.File(env["SPARQL_QUERY"])
-
-query_res = env.QueryWD(source = input, target = "${WORK_DIR}/author_query.jsonl")
-
-gb_authors = env.GBAuthorFuzzy(source = query_res, target = "${WORK_DIR}/gb_authors.jsonl")
-
-authors_and_extracted_works = env.ExtractAuthorWorksFromPG(
-    source = gb_authors,
-    target = "${WORK_DIR}/authors_and_extracted_works.jsonl"
-)
-
-extracted_structures = env.ExtractDocStructures(
-	source = authors_and_extracted_works,
-	target = "${WORK_DIR}/extracted_structures.jsonl"
-)
-
 train_dev_test = env.TrainingSplit(
-    source = extracted_structures,
+    source = pos_data,
     target = ["${WORK_DIR}/data.train", "${WORK_DIR}/data.dev", "${WORK_DIR}/data.test"]
 )
 
@@ -199,6 +182,8 @@ tokenizer = env.TrainTokenizer(
     source = train_dev_test[0],
     target = "${WORK_DIR}/tokenizer.json"
 )
+
+
 
 tokenized_train_dev_test = []
 for data_split in train_dev_test:
@@ -208,7 +193,7 @@ for data_split in train_dev_test:
 ))
 
 train_data, dev_data, test_data = tokenized_train_dev_test
-
+"""
 teacher_1 = env.TrainTeacher(
     source = [train_data, dev_data, tokenizer],
     target = Dir(f"{env['WORK_DIR']}/teacher_1"),

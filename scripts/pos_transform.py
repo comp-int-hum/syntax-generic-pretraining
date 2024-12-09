@@ -20,7 +20,7 @@ if __name__ == "__main__":
         for line in t_i:
             j_line = json.loads(line)
             doc = nlp(j_line["story"])
-            story = {"sents": [], "tokens": [], "datafile": j_line["datafile"], "i": j_line["i"]}
+            story = {"structure": [[[]]], "tokens": [], "datafile": j_line["datafile"], "i": j_line["i"]}
             for sent in doc.sents:
                 sent_toks = []
                 initial_offset = doc[sent.start].idx
@@ -33,9 +33,9 @@ if __name__ == "__main__":
                         pos_mask = "<"+token.pos_+">"
                         orig_sent = orig_sent[:(token.idx-initial_offset+running_offset)] + pos_mask + orig_sent[(token.idx-initial_offset+running_offset+len(token.text)):]
                         running_offset += len(pos_mask) - len(token.text)
-                story["sents"].append(orig_sent)
+                story["structure"][0][0].append(orig_sent)
                 story["tokens"].append(sent_toks)
-            n_sents += len(story["sents"])
+            n_sents += len(story["structure"][0][0])
             p_o.write(json.dumps(story)+"\n")
     print(f"Processed {n_sents} sentences") 
 

@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dev", help="output dev file", default="data.dev")
     parser.add_argument("--output_test", help="output test", default="data.test")
     parser.add_argument("--random_seed", help="random seed", default=42, type=int)
+    parser.add_argument("--include_preface", help="Include the first chapter (preface)", action="store_true", default=False)
     args, rest = parser.parse_known_args()
 
     # setup
@@ -29,7 +30,7 @@ if __name__ == "__main__":
             # each line is a book, with book["structure"] holding a list of chapters, with a list of paragraphs, with a list of sentences
             # the first line is a preface usually so to be safe we skip it
             for i, chapter in enumerate(jline["structure"]):
-                if i == 0:
+                if i == 0 and args.include_preface == False:
                     continue
                 for paragraph in chapter:
                     all_sentences.extend(paragraph)

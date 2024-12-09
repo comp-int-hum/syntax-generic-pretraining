@@ -12,6 +12,11 @@ vars.AddVariables(
     ("GUTENBERG_PATH", "", "${DATA_ROOT}/gutenberg/"),
     ("PG_CATALOG", "", "data/pg_catalog.csv"),
 
+    # Tinystories data
+    ("TS_TAR", "", "data/TinyStories_all_data.tar.gz"),
+    ("TS_N", "", 5),
+    ("POS_REP", "", ["NOUN", "PROPN"]),
+
     # SPARQL query
     ("SPARQL_QUERY","", "data/en_authors.txt"),
     
@@ -140,11 +145,35 @@ env = Environment(
                 "--wandb_name ${WANDB_NAME} "
                 "--output_dir ${TARGET}"
             )
+        ),
+        "LoadTSData" : Builder(
+            action = (
+                "python scripts/load_ts.py "
+                "--ts_tgz ${SOURCES} "
+                "--output ${TARGETS} "
+                "--n ${TS_N}"
+            )
+        ),
+        "POSTransform" : Builder(
+            action= (
+                "python scripts/pos_transform.py "
+                "--input ${SOURCES} "
+                "--output ${TARGETS} "
+                "--data_name ${DATA_NAME} "
+                "--pos_rep ${POS_REP}"
+                )
         )
     }
 )
 
+ts_input = env.File(env["TS_TAR"])
 
+ts_data = env.LoadTSData(source = ts_input, target = "${WORK_DIR}/ts_subset.jsonl")
+
+pos_data = env.POSTransform(source = ts_data, target = "${WORK_DIR}/ts_pos.jsonl", DATA_NAME = "ts")
+
+
+"""
 input = env.File(env["SPARQL_QUERY"])
 
 query_res = env.QueryWD(source = input, target = "${WORK_DIR}/author_query.jsonl")
@@ -200,6 +229,6 @@ student = env.DistillTrainStudent(
     CONFIG = env["STUDENT_CONFIG"],
     WANDB_NAME = "Student"
 )
-
+"""
 
 

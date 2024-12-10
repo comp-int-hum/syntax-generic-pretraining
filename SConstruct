@@ -14,8 +14,12 @@ vars.AddVariables(
 
     # Tinystories data
     ("TS_TAR", "", "data/TinyStories_all_data.tar.gz"),
-    ("TS_N", "", 100000),
+    ("TS_N", "", 7500),
     ("POS_REP", "", ["NOUN", "PROPN"]),
+
+    # Arxiv data
+    ("AX_ZIP", "", "data/arxiv.zip"),
+    ("AX_N", "", 10000),
 
     # SPARQL query
     ("SPARQL_QUERY","", "data/en_authors.txt"),
@@ -155,6 +159,16 @@ env = Environment(
                 "--n ${TS_N}"
             )
         ),
+
+        "LoadAXData" : Builder(
+            action = (
+                "python scripts/load_ax.py "
+                "--ax_zip ${SOURCES} "
+                "--output ${TARGETS} "
+                "--n ${AX_N}"
+            )
+        ),
+        
         "POSTransform" : Builder(
             action= (
                 "python scripts/pos_transform.py "
@@ -193,6 +207,14 @@ for data_split in train_dev_test:
 ))
 
 train_data, dev_data, test_data = tokenized_train_dev_test
+
+
+ax_input = env.File(env["AX_ZIP"])
+
+ax_data = env.LoadAXData(source = ax_input, target = "${WORK_DIR}/ax_subset.jsonl")
+
+pos_data = env.POSTransform(source = ax_data, target = "${WORK_DIR}/ax_pos.jsonl", DATA_NAME = "ax")
+
 """
 teacher_1 = env.TrainTeacher(
     source = [train_data, dev_data, tokenizer],

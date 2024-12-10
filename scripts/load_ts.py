@@ -24,6 +24,6 @@ if __name__ == "__main__":
                             break
                         else:
                             c_s += 1
-                            o_jl.write(json.dumps({"story": story["story"], "datafile": member.name, "i":i})+"\n")
+                            o_jl.write(json.dumps({"structure": [[story["story"]]], "datafile": member.name, "i":i})+"\n")
                             
         

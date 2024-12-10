@@ -23,7 +23,9 @@ if __name__ == "__main__":
 
 
     all_sentences = []
+    all_paragraphs = []
 
+    
     with open(args.input, "rt") as fin:
         for line in fin:
             jline = json.loads(line)
@@ -33,11 +35,16 @@ if __name__ == "__main__":
                 if i == 0 and args.include_preface == False:
                     continue
                 for paragraph in chapter:
-                    all_sentences.extend(paragraph)
+                    #all_sentences.extend(paragraph)
+                    all_paragraphs.append(paragraph)
+
+    random.shuffle(all_paragraphs)
+    for paragraph in all_paragraphs:
+        all_sentences.extend(paragraph)
 
     logging.info(f"Total sentences: {len(all_sentences)}")
-
-    random.shuffle(all_sentences)
+    
+    #random.shuffle(all_sentences)
 
     train_size = int(len(all_sentences) * args.train_portion)
     dev_size = int(len(all_sentences) * args.dev_portion)

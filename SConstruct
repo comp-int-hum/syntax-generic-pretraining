@@ -7,6 +7,13 @@ from steamroller import Environment
 vars = Variables("custom.py")
 vars.AddVariables(
 
+    # Experiment combination configs
+    ("CONFIGS","", [
+        {"data": ["ts_pos","ax"], "tokenizer": "ts_pos"},
+	{"data": ["ts","ax"], "tokenizer": "ts"},
+	{"data": ["ts_pos", "ts"], "tokenizer": "ts_pos"}]),
+    ("TOKENIZERS","", ["ts_pos","ts"]),
+
     # Gutenberg data
     ("DATA_ROOT", "", os.path.expanduser("~/corpora")),
     ("GUTENBERG_PATH", "", "${DATA_ROOT}/gutenberg/"),
@@ -182,11 +189,38 @@ env = Environment(
 )
 
 ts_input = env.File(env["TS_TAR"])
+ax_input = env.File(env["AX_ZIP"])
 
 ts_data = env.LoadTSData(source = ts_input, target = "${WORK_DIR}/ts_subset.jsonl")
+ax_data = env.LoadAXData(source = ax_input, target = "${WORK_DIR}/ax_subset.jsonl")
 
-pos_data = env.POSTransform(source = ts_data, target = "${WORK_DIR}/ts_pos.jsonl", DATA_NAME = "ts")
+ts_pos_data = env.POSTransform(source = ts_data, target = "${WORK_DIR}/ts_subset_pos.jsonl", DATA_NAME = "ts")
 
+data = {"ts": ts_data, "ax": ax_data, "ts_pos": ts_pos_data}
+
+splits = {}
+for dname, dset in data.items():
+    splits[dname] = env.TrainingSplit(
+        source = dset,
+	target = ["${WORK_DIR}/${DNAME}_data.train", "${WORK_DIR}/${DNAME}_data.dev", "${WORK_DIR}/${DNAME}_data.test"],
+	DNAME = dname
+    )
+
+
+
+
+tokenizers = {}
+for tname in env["TOKENIZERS"]:
+    tokenizers[tname] = env.TrainTokenizer(
+        source = splits[tname][0],
+	target = "${WORK_DIR}/${TNAME}_tokenizer.json",
+        TNAME = tname
+    )
+    
+
+
+
+"""
 train_dev_test = env.TrainingSplit(
     source = pos_data,
     target = ["${WORK_DIR}/data.train", "${WORK_DIR}/data.dev", "${WORK_DIR}/data.test"]
@@ -209,13 +243,7 @@ for data_split in train_dev_test:
 train_data, dev_data, test_data = tokenized_train_dev_test
 
 
-ax_input = env.File(env["AX_ZIP"])
 
-ax_data = env.LoadAXData(source = ax_input, target = "${WORK_DIR}/ax_subset.jsonl")
-
-pos_data = env.POSTransform(source = ax_data, target = "${WORK_DIR}/ax_pos.jsonl", DATA_NAME = "ax")
-
-"""
 teacher_1 = env.TrainTeacher(
     source = [train_data, dev_data, tokenizer],
     target = Dir(f"{env['WORK_DIR']}/teacher_1"),

@@ -33,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default=None, help="Path to the output directory")
     
     parser.add_argument("--load_from_model", type=str, default=None, help = "Path to the model to load from")
-    parser.add_argument("--save_total", type=str, default=None, help = "Total number of checkpoints to save")
+    parser.add_argument("--save_total", type=int, default=None, help = "Total number of checkpoints to save")
     args = parser.parse_args()
     
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         gradient_accumulation_steps=accumulation_steps,
         per_device_train_batch_size=per_device_bsz,
         per_device_eval_batch_size=per_device_bsz,
-        save_total_limit=1,  # Set to zero to avoid saving
+        save_total_limit=args.save_total,  # Set to zero to avoid saving
         warmup_steps=config['training']['warmup_steps'], 
         lr_scheduler_type="cosine",
         learning_rate=float(config['training']['lr']),

@@ -51,7 +51,7 @@ vars.AddVariables(
     ("GPU_ACCOUNT", "", None),
     ("CPU_COUNT", "", 2),
     ("CPU_QUEUE", "", "parallel"),
-    ("CPU_ACCOUNT", "", None)
+    ("CPU_ACCOUNT", "", None),
 
     # Data Split settings
     ("TRAIN_PORTION", "", 0.7),

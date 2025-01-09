@@ -19,14 +19,14 @@ if __name__ == "__main__":
     with open(args.input, "rt") as t_i, open(args.output, "wt") as p_o:
         for line in t_i:
             j_line = json.loads(line)
-            doc = nlp(j_line["structure"][0][0])
+            doc = nlp(j_line["structure"][0][0][0])
             story = {"structure": [[[]]], "tokens": [], "datafile": j_line["datafile"], "i": j_line["i"]}
             for sent in doc.sents:
                 sent_toks = []
                 initial_offset = doc[sent.start].idx
                 running_offset = 0
                 sent_end = doc[sent.end].idx if sent.end < len(doc) else doc[-1].idx + 1
-                orig_sent = j_line['structure'][0][0][initial_offset:sent_end]
+                orig_sent = j_line['structure'][0][0][0][initial_offset:sent_end]
                 for token in sent:
                     if token.pos_ in args.pos_rep:
                         sent_toks.append(token.text)

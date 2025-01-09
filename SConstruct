@@ -293,6 +293,20 @@ teacher_1, t1_checkpoints = env.TrainTeacher(
     **gpu_task_config(f"teacher_1_ts", "12:00:00"),
 )
 
+checkpoints_1_dirs = [os.path.join(t2_checkpoints, d) for d in os.listdir(t1_checkpoints) if 'checkpoint-' in d]
+
+for checkpoint_dir in checkpoints_1_dirs:
+    checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
+        source=[second_tokenized[0], second_tokenized[1], tokenizers[second_dataset]],
+        target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
+        CONFIG=env["TRAINER_CONFIG_1"],
+        WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
+        SAVE_TOTAL=env["SAVE_TOTAL"],
+        LOAD_FROM_MODEL=Dir(checkpoint_dir),
+        **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
+    )
+
+
 teacher_2, t2_checkpoints = env.TrainTeacher(
     source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
     target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints")],
@@ -301,6 +315,8 @@ teacher_2, t2_checkpoints = env.TrainTeacher(
     SAVE_TOTAL = env["SAVE_TOTAL"],
     **gpu_task_config(f"teacher_2_ts", "12:00:00"),
 )
+
+
 
 # teacher_2 = env.TrainTeacher(
 #     source = [train_data, dev_data, tokenizer],

@@ -11,9 +11,10 @@ vars.AddVariables(
 
     # Experiment combination configs
     ("CONFIGS","", [
-        {"data": ["ts_pos","ax"], "tokenizer": "ts_pos"},
-	{"data": ["ts","ax"], "tokenizer": "ts"},
-	{"data": ["ts_pos", "ts"], "tokenizer": "ts_pos"}]),
+            {"data": ["ts_pos","ax"], "tokenizer": "ts_pos"},
+            {"data": ["ts","ax"], "tokenizer": "ts"},
+            {"data": ["ts_pos", "ts"], "tokenizer": "ts_pos"}
+        ]),
     ("TOKENIZERS","", ["ts_pos","ts", "ax"]),
     ("SAVE_TOTAL", "Max number of models that can be saved in a run", 10),
 
@@ -43,12 +44,14 @@ vars.AddVariables(
     ("FOLDS", "", 1),
 
     # SLURM settings
-    ("CPU_QUEUE", "", "some_queue"),
-    ("CPU_ACCOUNT", "", "some_account"),    
-    ("GPU_QUEUE", "", "another_queue"),
-    ("GPU_ACCOUNT", "", "another_account"),
+    ("STEAMROLLER_ENGINE", "", "slurm"),
+    ("GRID_MEMORY", "", "64G"),
     ("GPU_COUNT", "", 1),
-    ("WORK_DIR", "", "work"),
+    ("GPU_QUEUE", "", ""),
+    ("GPU_ACCOUNT", "", None),
+    ("CPU_COUNT", "", 2),
+    ("CPU_QUEUE", "", "parallel"),
+    ("CPU_ACCOUNT", "", None)
 
     # Data Split settings
     ("TRAIN_PORTION", "", 0.7),
@@ -69,19 +72,10 @@ vars.AddVariables(
     
     ("TRAINER_CONFIG_1", "", "config/llama-smoll-345M.yaml"),
     ("TRAINER_CONFIG_2", "", "config/llama-smoll-345M.yaml"),
-    ("STUDENT_CONFIG", "", "config/llama-smoll-345M.yaml")
-    
-)
+    ("STUDENT_CONFIG", "", "config/llama-smoll-345M.yaml"),
 
-vars.AddVariables(
-    ("STEAMROLLER_ENGINE", "", "slurm"),
-    ("GRID_MEMORY", "", "64G"),
-    ("GPU_COUNT", "", 1),
-    ("GPU_QUEUE", "", ""),
-    ("GPU_ACCOUNT", "", None),
-    ("CPU_COUNT", "", 2),
-    ("CPU_QUEUE", "", "parallel"),
-    ("CPU_ACCOUNT", "", None)
+    ("LOAD_FROM_MODEL", "", None)
+    
 )
 
 env = Environment(
@@ -159,7 +153,8 @@ env = Environment(
                 "--wandb_name ${WANDB_NAME} "
                 "--output_dir ${TARGETS[0]} "
                 "--checkpoints ${TARGETS[1]} "
-                "--save_total ${SAVE_TOTAL}"
+                "--save_total ${SAVE_TOTAL} "
+                "${LOAD_FROM_MODEL and f'--load_from_model ' + LOAD_FROM_MODEL or ''}"
             )
         ),
         "DistillTrainStudent" : Builder(
@@ -245,67 +240,67 @@ ts_pos_data = env.POSTransform(source = ts_data,
                                DATA_NAME = "ts",
                                **cpu_task_config(f"words", "6:00:00"))
 
-# data = {"ts": ts_data, "ax": ax_data, "ts_pos": ts_pos_data}
+data = {"ts": ts_data, "ax": ax_data, "ts_pos": ts_pos_data}
 
-# splits = {}
-# for dname, dset in data.items():
-#     splits[dname] = env.TrainingSplit(
-#         source = dset,
-# 		target = ["${WORK_DIR}/${DNAME}_data.train", "${WORK_DIR}/${DNAME}_data.dev", "${WORK_DIR}/${DNAME}_data.test"],
-# 		DNAME = dname,
-#   		**cpu_task_config(f"training_split_{dname}", "6:00:00"),
-#     )
+splits = {}
+for dname, dset in data.items():
+    splits[dname] = env.TrainingSplit(
+        source = dset,
+		target = ["${WORK_DIR}/${DNAME}_data.train", "${WORK_DIR}/${DNAME}_data.dev", "${WORK_DIR}/${DNAME}_data.test"],
+		DNAME = dname,
+  		**cpu_task_config(f"training_split_{dname}", "6:00:00"),
+    )
 
 
-# tokenizers = {}
-# for tname in env["TOKENIZERS"]:
-#     tokenizers[tname] = env.TrainTokenizer(
-#         source = splits[tname][0],
-# 		target = "${WORK_DIR}/${TNAME}_tokenizer.json",
-#         TNAME = tname,
-#         **cpu_task_config(f"train_tokenizer_{tname}", "6:00:00"),
-#     )
+tokenizers = {}
+for tname in env["TOKENIZERS"]:
+    tokenizers[tname] = env.TrainTokenizer(
+        source = splits[tname][0],
+		target = "${WORK_DIR}/${TNAME}_tokenizer.json",
+        TNAME = tname,
+        **cpu_task_config(f"train_tokenizer_{tname}", "6:00:00"),
+    )
 
-# first_dataset = "ts"
-# second_dataset = "ax"
+first_dataset = "ts"
+second_dataset = "ax"
 
-# first_tokenized = []
-# for split in splits[first_dataset]:
-# 	first_tokenized.append(
-#      	env.TokenizeSplit(
-# 			source = [split, tokenizers[first_dataset]],
-# 			target = str(split) + ".pt",
-# 			**cpu_task_config(f"ax_tokenization", "6:00:00"),
-# 		)
-#     )
+first_tokenized = []
+for split in splits[first_dataset]:
+	first_tokenized.append(
+     	env.TokenizeSplit(
+			source = [split, tokenizers[first_dataset]],
+			target = str(split) + ".pt",
+			**cpu_task_config(f"ax_tokenization", "6:00:00"),
+		)
+    )
 
-# second_tokenized = []
-# for split in splits[second_dataset]:
-# 	second_tokenized.append(
-#      	env.TokenizeSplit(
-# 			source = [split, tokenizers[second_dataset]],
-# 			target = str(split) + ".pt",
-# 			**cpu_task_config(f"ax_tokenization", "6:00:00"),
-# 		)
-#     )
+second_tokenized = []
+for split in splits[second_dataset]:
+	second_tokenized.append(
+     	env.TokenizeSplit(
+			source = [split, tokenizers[second_dataset]],
+			target = str(split) + ".pt",
+			**cpu_task_config(f"ax_tokenization", "6:00:00"),
+		)
+    )
 
-# teacher_1, t1_checkpoints = env.TrainTeacher(
-#     source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
-#     target = [Dir(f"{env['WORK_DIR']}/teacher_1/output"), Dir(f"{env['WORK_DIR']}/teacher_1/checkpoints")],
-#     CONFIG = env["TRAINER_CONFIG_1"],
-#     WANDB_NAME = "Teacher_1",
-#     SAVE_TOTAL = env["SAVE_TOTAL"],
-#     **gpu_task_config(f"teacher_1_ts", "12:00:00"),
-# )
+teacher_1, t1_checkpoints = env.TrainTeacher(
+    source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
+    target = [Dir(f"{env['WORK_DIR']}/teacher_1/output"), Dir(f"{env['WORK_DIR']}/teacher_1/checkpoints")],
+    CONFIG = env["TRAINER_CONFIG_1"],
+    WANDB_NAME = "Teacher_1",
+    SAVE_TOTAL = env["SAVE_TOTAL"],
+    **gpu_task_config(f"teacher_1_ts", "12:00:00"),
+)
 
-# teacher_2, t2_checkpoints = env.TrainTeacher(
-#     source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
-#     target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints")],
-#     CONFIG = env["TRAINER_CONFIG_2"],
-#     WANDB_NAME = "Teacher_2",
-#     SAVE_TOTAL = env["SAVE_TOTAL"],
-#     **gpu_task_config(f"teacher_2_ts", "12:00:00"),
-# )
+teacher_2, t2_checkpoints = env.TrainTeacher(
+    source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
+    target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints")],
+    CONFIG = env["TRAINER_CONFIG_2"],
+    WANDB_NAME = "Teacher_2",
+    SAVE_TOTAL = env["SAVE_TOTAL"],
+    **gpu_task_config(f"teacher_2_ts", "12:00:00"),
+)
 
 # teacher_2 = env.TrainTeacher(
 #     source = [train_data, dev_data, tokenizer],

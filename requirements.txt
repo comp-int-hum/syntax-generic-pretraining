@@ -15,4 +15,4 @@ transformers
 transformers[torch]
 wandb
 spacy
-spacy download en_core_web_sm
+#spacy download en_core_web_sm

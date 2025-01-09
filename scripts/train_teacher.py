@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoints", type=str, default=None, help="Path to the checkpoint directory")
     parser.add_argument("--output_dir", type=str, default=None, help="Path to the output directory")
     
+    parser.add_argument("--load_from_model", type=str, default=None, help = "Path to the model to load from")
     parser.add_argument("--save_total", type=str, default=None, help = "Total number of checkpoints to save")
     args = parser.parse_args()
     
@@ -82,6 +83,8 @@ if __name__ == "__main__":
             pad_token_id=tokenizer.convert_tokens_to_ids("<pad>"),
         )
         model = LlamaForCausalLM(model_config)
+        if args.load_from_model:
+            model = LlamaForCausalLM.from_pretrained(args.load_from_model)
     elif config['model']['type'] == "GPT2":
         model_config = GPT2Config(
             vocab_size=tokenizer.vocab_size,
@@ -95,6 +98,8 @@ if __name__ == "__main__":
             pad_token_id=tokenizer.convert_tokens_to_ids("<pad>"),
         )
         model = GPT2LMHeadModel(model_config)
+        if args.load_from_model:
+            model = GPT2LMHeadModel.from_pretrained(args.load_from_model)
     elif config['model']['type'] == "GPTJ":
         model_config = GPTJConfig(
             vocab_size=tokenizer.vocab_size,
@@ -109,9 +114,10 @@ if __name__ == "__main__":
             pad_token_id=tokenizer.convert_tokens_to_ids("<pad>"),
         )
         model = GPTJForCausalLM(model_config)
+        if args.load_from_model:
+            model = GPTJForCausalLM.from_pretrained(args.load_from_model)
 
     print(f'model parameters = {model.num_parameters()}')
-
 
     output_dir = args.output_dir
     accumulation_steps = config['training']['gradient_accumulation_steps']

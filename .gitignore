@@ -1,0 +1,6 @@
+work/*
+.sconsign.dblite
+data/*
+local/*
+*pycache*
+wandb*

@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_data", help="Path to the training data")
     parser.add_argument("--eval_data", help="Path to the evaluation data")
     parser.add_argument("--tokenizer_path", help="Path to the tokenizer")
+    
     # teacher models
     parser.add_argument("--teacher_dir_1", help="Path to the first teacher model")
     parser.add_argument("--teacher_dir_2", help="Path to the second teacher model")
@@ -64,6 +65,8 @@ if __name__ == "__main__":
             intermediate_size=config['model']['intermediate_size'],
             num_hidden_layers=config['model']['n_layer'],
             num_attention_heads=config['model']['n_head'],
+            num_key_value_heads=config['model'].get('n_KV', config['model']['n_head']),
+            attention_dropout=config['model'].get('attention_dropout', 0.0),
             tie_word_embeddings=config['model'].get('tie_word_embeddings', False),
             pad_token_id=tokenizer.convert_tokens_to_ids("<pad>"),
         )

@@ -29,11 +29,16 @@ if __name__ == "__main__":
     parser.add_argument("--wandb_project", type=str, default=None, help="Wandb project name")
     parser.add_argument("--wandb_name", type=str, default=None, help="Wandb run name")
     # output
+    parser.add_argument("--checkpoints", type=str, default=None, help="Path to the checkpoint directory")
     parser.add_argument("--output_dir", type=str, default=None, help="Path to the output directory")
+    
+    parser.add_argument("--save_total", type=str, default=None, help = "Total number of checkpoints to save")
     args = parser.parse_args()
+    
 
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
+        
 
     seed(args.random_seed) # we fix the same subset for all models
 
@@ -49,7 +54,7 @@ if __name__ == "__main__":
     full_eval_dataset = GBDataset(args.eval_data, config['data']['seq_length'], offset=0)
 
     
-    eval_indices = sample(range(len(full_eval_dataset)), config['data']['eval_samples'])
+    eval_indices = sample(range(len(full_eval_dataset)), min(config['data']['eval_samples'], len(full_eval_dataset)))
     eval_dataset = Subset(full_eval_dataset, eval_indices)
 
     tokenizer = GPT2TokenizerFast(tokenizer_file = str(args.tokenizer_path))
@@ -71,6 +76,8 @@ if __name__ == "__main__":
             intermediate_size=config['model']['intermediate_size'],
             num_hidden_layers=config['model']['n_layer'],
             num_attention_heads=config['model']['n_head'],
+            num_key_value_heads=config['model'].get('n_KV', config['model']['n_head']),
+            attention_dropout=config['model'].get('attention_dropout', 0.0),
             tie_word_embeddings=config['model'].get('tie_word_embeddings', False),
             pad_token_id=tokenizer.convert_tokens_to_ids("<pad>"),
         )
@@ -113,13 +120,14 @@ if __name__ == "__main__":
     print(f"cuda available: {torch.cuda.is_available()}")
     print(f"training length: {len(train_dataset)}")
     training_args = TrainingArguments(
-        output_dir=output_dir,
+        output_dir=args.checkpoints,
         overwrite_output_dir=True,
         save_strategy = "epoch",
         evaluation_strategy = "epoch",
         num_train_epochs=config['training']['num_epochs'],
         gradient_accumulation_steps=accumulation_steps,
         per_device_train_batch_size=per_device_bsz,
+        per_device_eval_batch_size=per_device_bsz,
         save_total_limit=1,  # Set to zero to avoid saving
         warmup_steps=config['training']['warmup_steps'], 
         lr_scheduler_type="cosine",

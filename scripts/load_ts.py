@@ -1,16 +1,20 @@
 import argparse
 import json
 import tarfile
+import spacy
+
+nlp = spacy.load("en_core_web_sm")
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--ts_tgz", help="Targz input")
-    parser.add_argument("--output", nargs="+", help="Output jsonls, len == --sets")
+    parser.add_argument("--output",  help="Output jsonls, len == --sets") # nargs="+",
     parser.add_argument("--n", type=int, default=10000, help="Number of samples/set")
     parser.add_argument("--sets", type=int, default=1, help="Number of nonoverlapping datasets to draw")
     args, rest = parser.parse_known_args()
-
+    
+    print(f"Output: {args.output}")
     with tarfile.open(args.ts_tgz, "r:gz") as t_i, open(args.output, "wt") as o_jl:
         c_s = 0
         for member in t_i:

@@ -23,5 +23,5 @@ with ZipFile(args.ax_zip) as z_i, open(args.output, "wt") as o_jl:
                         break
                     c_s += 1
                     j_line = json.loads(line)
-                    o_jl.write(json.dumps({"structure": [[j_line["abstract"]]], "datafile": sfile, "i": j_line["id"]})+"\n")
+                    o_jl.write(json.dumps({"structure": [[[j_line["abstract"]]]], "datafile": sfile, "i": j_line["id"]})+"\n")
 

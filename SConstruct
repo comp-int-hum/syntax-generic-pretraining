@@ -22,6 +22,7 @@ vars.AddVariables(
     ("DATA_ROOT", "", os.path.expanduser("~/corpora")),
     ("GUTENBERG_PATH", "", "${DATA_ROOT}/gutenberg/"),
     ("PG_CATALOG", "", "data/pg_catalog.csv"),
+    ("WORK_DIR", "", "work/"),
 
     # Tinystories data
     ("TS_TAR", "", "data/TinyStories_all_data.tar.gz"),
@@ -45,13 +46,12 @@ vars.AddVariables(
 
     # SLURM settings
     ("STEAMROLLER_ENGINE", "", "slurm"),
-    ("GRID_MEMORY", "", "64G"),
-    ("GPU_COUNT", "", 1),
-    ("GPU_QUEUE", "", ""),
-    ("GPU_ACCOUNT", "", None),
-    ("CPU_COUNT", "", 2),
     ("CPU_QUEUE", "", "parallel"),
-    ("CPU_ACCOUNT", "", None),
+    ("CPU_ACCOUNT", "", "tlippin1"),    
+    ("GPU_QUEUE", "", "a100"),
+    ("GPU_ACCOUNT", "", "tlippin1_gpu"),
+    ("GPU_COUNT", "", 1),
+    ("GRID_MEMORY", "", "64GB"),
 
     # Data Split settings
     ("TRAIN_PORTION", "", 0.7),

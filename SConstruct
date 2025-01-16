@@ -293,7 +293,7 @@ teacher_1, t1_checkpoints = env.TrainTeacher(
     **gpu_task_config(f"teacher_1_ts", "12:00:00"),
 )
 
-checkpoints_1_dirs = [os.path.join(t2_checkpoints, d) for d in os.listdir(t1_checkpoints) if 'checkpoint-' in d]
+checkpoints_1_dirs = [os.path.join(t1_checkpoints.path, d) for d in os.listdir(t1_checkpoints.path) if 'checkpoint-' in d]
 
 for checkpoint_dir in checkpoints_1_dirs:
     checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
@@ -302,7 +302,7 @@ for checkpoint_dir in checkpoints_1_dirs:
         CONFIG=env["TRAINER_CONFIG_1"],
         WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
         SAVE_TOTAL=env["SAVE_TOTAL"],
-        LOAD_FROM_MODEL=Dir(checkpoint_dir),
+        LOAD_FROM_MODEL=checkpoint_dir,
         **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
     )
 

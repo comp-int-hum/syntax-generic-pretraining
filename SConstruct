@@ -1,6 +1,6 @@
 import os
 import os.path
-
+import json
 from steamroller import Environment
 
 
@@ -225,6 +225,24 @@ def gpu_task_config(name, time_required, memory_required=env["GRID_MEMORY"]):
         "STEAMROLLER_GPU_COUNT": env["GPU_COUNT"],
     }
 
+def gather_checkpoints(target, source, env):
+    checkpoints_1_dirs = [os.path.join(source.path, d) for d in os.listdir(source.path) if 'checkpoint-' in d]
+    with open(str(target[0]), "w") as output_file:
+        json.dump(checkpoints_1_dirs, output_file)
+    return None
+
+def train_checkpoints(target, source, env):
+    for checkpoint_dir in source:
+        checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
+            source=[second_tokenized[0], second_tokenized[1], tokenizer],
+            target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))t],
+            CONFIG=env["TRAINER_CONFIG_1"],
+            WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
+            SAVE_TOTAL=env["SAVE_TOTAL"],
+            LOAD_FROM_MODEL=checkpoint_dir,
+            **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
+        )
+
 ts_input = env.File(env["TS_TAR"])
 ax_input = env.File(env["AX_ZIP"])
 
@@ -239,6 +257,7 @@ ts_pos_data = env.POSTransform(source = ts_data,
                                target = "${WORK_DIR}/ts_subset_pos.jsonl",
                                DATA_NAME = "ts",
                                **cpu_task_config(f"words", "6:00:00"))
+                               
 
 data = {"ts": ts_data, "ax": ax_data, "ts_pos": ts_pos_data}
 
@@ -252,14 +271,21 @@ for dname, dset in data.items():
     )
 
 
-tokenizers = {}
-for tname in env["TOKENIZERS"]:
-    tokenizers[tname] = env.TrainTokenizer(
-        source = splits[tname][0],
-		target = "${WORK_DIR}/${TNAME}_tokenizer.json",
-        TNAME = tname,
-        **cpu_task_config(f"train_tokenizer_{tname}", "6:00:00"),
-    )
+#tokenizers = {}
+
+datasets_to_combine = ["ts_pos","ts", "ax"]
+datasets = []
+for dname in datasets_to_combine:
+     datasets.append(splits[dname][0])
+     
+
+#for tname in env["TOKENIZERS"]:
+tokenizer = env.TrainTokenizer(
+    source = datasets,
+    target = "${WORK_DIR}/${TNAME}_tokenizer.json",
+    TNAME = "combined",
+    **cpu_task_config(f"train_tokenizer_combine", "6:00:00"),
+)
 
 first_dataset = "ts"
 second_dataset = "ax"
@@ -268,7 +294,7 @@ first_tokenized = []
 for split in splits[first_dataset]:
 	first_tokenized.append(
      	env.TokenizeSplit(
-			source = [split, tokenizers[first_dataset]],
+			source = [split, tokenizer],
 			target = str(split) + ".pt",
 			**cpu_task_config(f"ax_tokenization", "6:00:00"),
 		)
@@ -278,14 +304,14 @@ second_tokenized = []
 for split in splits[second_dataset]:
 	second_tokenized.append(
      	env.TokenizeSplit(
-			source = [split, tokenizers[second_dataset]],
+			source = [split, tokenizer],
 			target = str(split) + ".pt",
 			**cpu_task_config(f"ax_tokenization", "6:00:00"),
 		)
     )
 
 teacher_1, t1_checkpoints = env.TrainTeacher(
-    source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
+    source = [first_tokenized[0], first_tokenized[1], tokenizer],
     target = [Dir(f"{env['WORK_DIR']}/teacher_1/output"), Dir(f"{env['WORK_DIR']}/teacher_1/checkpoints")],
     CONFIG = env["TRAINER_CONFIG_1"],
     WANDB_NAME = "Teacher_1",
@@ -293,11 +319,19 @@ teacher_1, t1_checkpoints = env.TrainTeacher(
     **gpu_task_config(f"teacher_1_ts", "12:00:00"),
 )
 
-checkpoints_1_dirs = [os.path.join(t1_checkpoints.path, d) for d in os.listdir(t1_checkpoints.path) if 'checkpoint-' in d]
+checkpoint_file = env.Command(
+    target = [f"{env['WORK_DIR']}/checkpoints_list.txt"],
+    source=[t1_checkpoints],
+    action=gather_checkpoints,
+)
 
+env.Command(
+    target = [Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
+    source = 
+)
 for checkpoint_dir in checkpoints_1_dirs:
     checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
-        source=[second_tokenized[0], second_tokenized[1], tokenizers[second_dataset]],
+        source=[second_tokenized[0], second_tokenized[1], tokenizer],
         target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
         CONFIG=env["TRAINER_CONFIG_1"],
         WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
@@ -308,7 +342,7 @@ for checkpoint_dir in checkpoints_1_dirs:
 
 
 teacher_2, t2_checkpoints = env.TrainTeacher(
-    source = [first_tokenized[0], first_tokenized[1], tokenizers[first_dataset]],
+    source = [first_tokenized[0], first_tokenized[1], tokenizer],
     target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints")],
     CONFIG = env["TRAINER_CONFIG_2"],
     WANDB_NAME = "Teacher_2",

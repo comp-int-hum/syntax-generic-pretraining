@@ -5,3 +5,4 @@ local/*
 *pycache*
 wandb*
 .venv
+work_old/*

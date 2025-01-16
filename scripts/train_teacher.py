@@ -85,6 +85,7 @@ if __name__ == "__main__":
         model = LlamaForCausalLM(model_config)
         if args.load_from_model:
             model = LlamaForCausalLM.from_pretrained(args.load_from_model)
+
     elif config['model']['type'] == "GPT2":
         model_config = GPT2Config(
             vocab_size=tokenizer.vocab_size,

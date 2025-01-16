@@ -9,7 +9,7 @@ import logging
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", help="text input")
+    parser.add_argument("--input", nargs="+", help="text input")
     parser.add_argument("--output", help="Tokenizer model output")
     parser.add_argument("--special_tokens", nargs="+", default=[], help="Additional special tokens for generic pretraining")
     args, rest = parser.parse_known_args()
@@ -22,12 +22,12 @@ if __name__ == "__main__":
     tokenizer.decoder = decoders.ByteLevel()
     tokenizer.post_processor = processors.ByteLevel(trim_offsets=True)
     tokenizer.normalizer = NFKC()
-
+    
     logging.info("Training tokenizer")
     #hack for bpe space splitting issues: prepend space to generic tokens
     addl_tokens = [" <"+tok+">" for tok in args.special_tokens] if len(args.special_tokens) > 0 else []
     trainer = trainers.BpeTrainer(vocab_size=16000, min_frequency=2, special_tokens=["<pad>", "<s>", "</s>"])
-    tokenizer.train([args.input], trainer)
+    tokenizer.train(args.input, trainer)
     tokenizer.add_tokens(addl_tokens)
 
     logging.info("Saving tokenizer model")

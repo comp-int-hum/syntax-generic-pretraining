@@ -13,7 +13,7 @@ import argparse
 import wandb
 from gb_dataloader import GBDataset
 import torch
-
+from custom_checkpoint_trainer import EpochTrainer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser.add_argument("--wandb_project", type=str, default=None, help="Wandb project name")
     parser.add_argument("--wandb_name", type=str, default=None, help="Wandb run name")
     # output
-    parser.add_argument("--checkpoints", type=str, default=None, help="Path to the checkpoint directory")
+    parser.add_argument("--checkpoints", type=str, nargs="+", default=None, help="Path to the all checkpoint files")
     parser.add_argument("--output_dir", type=str, default=None, help="Path to the output directory")
     
     parser.add_argument("--load_from_model", type=str, default=None, help = "Path to the model to load from")
@@ -124,6 +124,7 @@ if __name__ == "__main__":
     accumulation_steps = config['training']['gradient_accumulation_steps']
     per_device_bsz = config['training']['batch_size'] // accumulation_steps
 
+    args.checkpoints = "/".join(args.checkpoints[0].split("/")[:-1])
     print(f"cuda available: {torch.cuda.is_available()}")
     print(f"training length: {len(train_dataset)}")
     training_args = TrainingArguments(
@@ -146,7 +147,7 @@ if __name__ == "__main__":
         torch_compile = config['training'].get('torch_compile', False),
     )
 
-    trainer = Trainer(
+    trainer = EpochTrainer(
         model=model,
         args=training_args,
         data_collator=data_collator,

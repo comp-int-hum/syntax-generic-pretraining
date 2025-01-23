@@ -2,7 +2,7 @@ import os
 import os.path
 import json
 from steamroller import Environment
-
+import yaml
 
 
 
@@ -74,7 +74,10 @@ vars.AddVariables(
     ("TRAINER_CONFIG_2", "", "config/llama-smoll-345M.yaml"),
     ("STUDENT_CONFIG", "", "config/llama-smoll-345M.yaml"),
 
-    ("LOAD_FROM_MODEL", "", None)
+    ("LOAD_FROM_MODEL", "", None),
+    
+    ("T1_EPOCHS", "", 1),
+    ("T2_EPOCHS", "", 1)
     
 )
 
@@ -152,9 +155,9 @@ env = Environment(
                 "--wandb_project ${WANDB_PROJECT} "
                 "--wandb_name ${WANDB_NAME} "
                 "--output_dir ${TARGETS[0]} "
-                "--checkpoints ${TARGETS[1]} "
+                "--checkpoints ${TARGETS[1:]} "
                 "--save_total ${SAVE_TOTAL} "
-                "${LOAD_FROM_MODEL and f'--load_from_model ' + LOAD_FROM_MODEL or ''}"
+                "${LOAD_FROM_MODEL and f'--load_from_model ' + SOURCES[3].path or ''}"
             )
         ),
         "DistillTrainStudent" : Builder(
@@ -235,7 +238,7 @@ def train_checkpoints(target, source, env):
     for checkpoint_dir in source:
         checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
             source=[second_tokenized[0], second_tokenized[1], tokenizer],
-            target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))t],
+            target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
             CONFIG=env["TRAINER_CONFIG_1"],
             WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
             SAVE_TOTAL=env["SAVE_TOTAL"],
@@ -243,6 +246,17 @@ def train_checkpoints(target, source, env):
             **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
         )
 
+with open(env["TRAINER_CONFIG_1"], "r") as config_1:
+    trainer_1_config = yaml.safe_load(config_1)
+    env["T1_EPOCHS"] = trainer_1_config["training"]["num_epochs"]
+    
+with open(env["TRAINER_CONFIG_2"], "r") as config_2:
+    trainer_2_config = yaml.safe_load(config_2)
+    env["T2_EPOCHS"] = trainer_2_config["training"]["num_epochs"]
+    
+print(env["T1_EPOCHS"])
+print(env["T2_EPOCHS"])
+    
 ts_input = env.File(env["TS_TAR"])
 ax_input = env.File(env["AX_ZIP"])
 
@@ -309,46 +323,77 @@ for split in splits[second_dataset]:
 			**cpu_task_config(f"ax_tokenization", "6:00:00"),
 		)
     )
+ 
+print([f"{env['WORK_DIR']}/teacher_2/checkpoints/checkpoint-{_}" for _ in range(env["T1_EPOCHS"])])
 
-teacher_1, t1_checkpoints = env.TrainTeacher(
+output_t1 = env.TrainTeacher(
     source = [first_tokenized[0], first_tokenized[1], tokenizer],
-    target = [Dir(f"{env['WORK_DIR']}/teacher_1/output"), Dir(f"{env['WORK_DIR']}/teacher_1/checkpoints")],
+    target = [Dir(f"{env['WORK_DIR']}/teacher_1/output"), [Dir(f"{env['WORK_DIR']}/teacher_1/checkpoints/checkpoint-{_+1}.0") for _ in range(env["T1_EPOCHS"])]],
     CONFIG = env["TRAINER_CONFIG_1"],
     WANDB_NAME = "Teacher_1",
     SAVE_TOTAL = env["SAVE_TOTAL"],
     **gpu_task_config(f"teacher_1_ts", "12:00:00"),
 )
 
-checkpoint_file = env.Command(
-    target = [f"{env['WORK_DIR']}/checkpoints_list.txt"],
-    source=[t1_checkpoints],
-    action=gather_checkpoints,
-)
+teacher_1 = output_t1[0]
+t1_checkpoints = output_t1[1:]
 
-env.Command(
-    target = [Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
-    source = 
-)
-for checkpoint_dir in checkpoints_1_dirs:
-    checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
-        source=[second_tokenized[0], second_tokenized[1], tokenizer],
-        target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
-        CONFIG=env["TRAINER_CONFIG_1"],
-        WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
-        SAVE_TOTAL=env["SAVE_TOTAL"],
-        LOAD_FROM_MODEL=checkpoint_dir,
-        **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
-    )
-
-
-teacher_2, t2_checkpoints = env.TrainTeacher(
+output_t2 = env.TrainTeacher(
     source = [first_tokenized[0], first_tokenized[1], tokenizer],
-    target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints")],
+    target = [Dir(f"{env['WORK_DIR']}/teacher_2/output"), [Dir(f"{env['WORK_DIR']}/teacher_2/checkpoints/checkpoint-{_+1}.0") for _ in range(env["T2_EPOCHS"])]],
     CONFIG = env["TRAINER_CONFIG_2"],
     WANDB_NAME = "Teacher_2",
     SAVE_TOTAL = env["SAVE_TOTAL"],
     **gpu_task_config(f"teacher_2_ts", "12:00:00"),
 )
+
+teacher_2 = output_t2[0]
+t2_checkpoints = output_t2[1:]
+
+print(t1_checkpoints)
+for t1_checkpoint in t1_checkpoints:
+     checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
+        source=[second_tokenized[0], second_tokenized[1], tokenizer, t1_checkpoint],
+        target=[Dir(f"{t1_checkpoint.path}_output"), Dir(f"{t1_checkpoint.path}_sub_checkpoints")],
+        CONFIG=env["TRAINER_CONFIG_1"],
+        WANDB_NAME=f"{os.path.basename(t1_checkpoint.path)}_training",
+        SAVE_TOTAL=env["SAVE_TOTAL"],
+        LOAD_FROM_MODEL = True,
+        **gpu_task_config(f"{os.path.basename(t1_checkpoint.path)}_ts", "12:00:00"),
+    )
+     
+
+for t2_checkpoint in t2_checkpoints:
+    checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
+        source=[second_tokenized[0], second_tokenized[1], tokenizer, t2_checkpoint],
+        target=[Dir(f"{t2_checkpoint.path}_output"), Dir(f"{t2_checkpoint.path}_sub_checkpoints")],
+        CONFIG=env["TRAINER_CONFIG_1"],
+        WANDB_NAME=f"{os.path.basename(t2_checkpoint.path)}_training",
+        SAVE_TOTAL=env["SAVE_TOTAL"],
+        LOAD_FROM_MODEL = True,
+        **gpu_task_config(f"{os.path.basename(t2_checkpoint.path)}_ts", "12:00:00"),
+    )
+    
+# checkpoint_file = env.Command(
+#     target = [f"{env['WORK_DIR']}/checkpoints_list.txt"],
+#     source=[t1_checkpoints],
+#     action=gather_checkpoints,
+# )
+
+# env.Command(
+#     target = [Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
+#     source = 
+# )
+# for checkpoint_dir in checkpoints_1_dirs:
+#     checkpoint_teacher, new_checkpoint_dir = env.TrainTeacher(
+#         source=[second_tokenized[0], second_tokenized[1], tokenizer],
+#         target=[Dir(os.path.join(checkpoint_dir, "output")), Dir(os.path.join(checkpoint_dir, "sub_checkpoints"))],
+#         CONFIG=env["TRAINER_CONFIG_1"],
+#         WANDB_NAME=f"{os.path.basename(checkpoint_dir)}_training",
+#         SAVE_TOTAL=env["SAVE_TOTAL"],
+#         LOAD_FROM_MODEL=checkpoint_dir,
+#         **gpu_task_config(f"{os.path.basename(checkpoint_dir)}_ts", "12:00:00"),
+#     )
 
 
 

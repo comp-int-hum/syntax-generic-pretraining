@@ -15,7 +15,7 @@ training:
   lr: 7e-4
   weight_decay: 5.0
   batch_size: 32
-  num_epochs: 8
+  num_epochs: 2
   gradient_accumulation_steps: 4
   warmup_steps: 600
   fp16: True

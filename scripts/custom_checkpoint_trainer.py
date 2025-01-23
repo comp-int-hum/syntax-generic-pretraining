@@ -2,7 +2,7 @@ from transformers import Trainer, TrainingArguments
 import torch 
 import os
 import shutil
-import logger
+import logging
 import numpy as np
 
 from transformers.trainer_utils import (
@@ -30,6 +30,50 @@ from transformers.trainer_utils import (
     speed_metrics,
 )
 
+from transformers.utils import (
+    ADAPTER_CONFIG_NAME,
+    ADAPTER_SAFE_WEIGHTS_NAME,
+    ADAPTER_WEIGHTS_NAME,
+    CONFIG_NAME,
+    SAFE_WEIGHTS_INDEX_NAME,
+    SAFE_WEIGHTS_NAME,
+    WEIGHTS_INDEX_NAME,
+    WEIGHTS_NAME,
+    XLA_FSDPV2_MIN_VERSION,
+    PushInProgress,
+    PushToHubMixin,
+    can_return_loss,
+    find_labels,
+    is_accelerate_available,
+    is_apex_available,
+    is_bitsandbytes_available,
+    is_datasets_available,
+    is_galore_torch_available,
+    is_grokadamw_available,
+    is_in_notebook,
+    is_ipex_available,
+    is_liger_kernel_available,
+    is_lomo_available,
+    is_peft_available,
+    is_safetensors_available,
+    is_sagemaker_dp_enabled,
+    is_sagemaker_mp_enabled,
+    is_schedulefree_available,
+    is_torch_compile_available,
+    is_torch_mlu_available,
+    is_torch_mps_available,
+    is_torch_musa_available,
+    is_torch_neuroncore_available,
+    is_torch_npu_available,
+    is_torch_xla_available,
+    is_torch_xpu_available,
+    is_torchao_available,
+    logging,
+    strtobool,
+)
+
+logger = logging.get_logger(__name__)
+
 # Name of the files used for checkpointing
 TRAINING_ARGS_NAME = "training_args.bin"
 TRAINER_STATE_NAME = "trainer_state.json"
@@ -49,6 +93,9 @@ class EpochTrainer(Trainer):
 
         # Save model checkpoint
         epoch_number = self.state.epoch
+
+        # TODO: fix, right now its saving to 1.98550...
+        epoch_number = round(epoch_number, 1)
         checkpoint_folder = f"{PREFIX_CHECKPOINT_DIR}-{epoch_number}"
 
         if self.hp_search_backend is None and trial is None:
